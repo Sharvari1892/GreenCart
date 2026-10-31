@@ -1,321 +1,266 @@
-
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import ProductCard from "../components/ProductCard";
+import LoadingSkeleton from "../components/LoadingSkeleton";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
+const SORT_OPTIONS = [
+  { value: "",                     label: "Default order" },
+  { value: "name|asc",             label: "Name A→Z" },
+  { value: "name|desc",            label: "Name Z→A" },
+  { value: "price|asc",            label: "Price: Low to High" },
+  { value: "price|desc",           label: "Price: High to Low" },
+  { value: "sustainability_score|desc", label: "Best Sustainability" },
+];
+
 function Products({ selectedProducts, setSelectedProducts }) {
-  console.log("Selected product IDs:", selectedProducts);
-  const [products, setProducts] = useState([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [categoryList, setCategoryList] = useState([]);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  /* ── State ──────────────────────────────────────────────── */
+  const [products,     setProducts]     = useState([]);
+  const [search,       setSearch]       = useState("");
+  const [category,     setCategory]     = useState("All");
+  const [sort,         setSort]         = useState("");
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
+  const [categoryList, setCategoryList] = useState([]);
+  const [catFromUrl,   setCatFromUrl]   = useState(false);
+
+  /* ── Fetch products + categories on mount ───────────────── */
   useEffect(() => {
     const controller = new AbortController();
 
-    async function fetchProducts() {
+    async function fetchAll() {
       try {
         setLoading(true);
         setError("");
 
-        const response = await fetch(
-          `${API_URL}/products?page=1&page_size=100`,
-          { signal: controller.signal }
-        );
+        const [prodRes, catRes] = await Promise.all([
+          fetch(`${API_URL}/products?page=1&page_size=100`, { signal: controller.signal }),
+          fetch(`${API_URL}/categories`, { signal: controller.signal }),
+        ]);
 
-        if (!response.ok) {
-          throw new Error(`Failed to load products (${response.status}).`);
+        if (!prodRes.ok) {
+          throw new Error(`Failed to load products (${prodRes.status}).`);
         }
 
-        const data = await response.json();
-        setProducts(data.items || []);
-        const categoryResponse = await fetch(`${API_URL}/categories`, {
-  signal: controller.signal,
-});
+        const prodData = await prodRes.json();
+        setProducts(prodData.items || []);
 
-if (categoryResponse.ok) {
-  const categoryData = await categoryResponse.json();
-  setCategoryList(categoryData);
-}
+        if (catRes.ok) {
+          const catData = await catRes.json();
+          setCategoryList(Array.isArray(catData) ? catData : []);
+        }
       } catch (err) {
         if (err.name !== "AbortError") {
           setError(err.message || "Unable to load products.");
         }
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
-    fetchProducts();
-
+    fetchAll();
     return () => controller.abort();
   }, []);
 
+  /* Honour ?category=<id> from query string (e.g. from Home page category click).
+     We do this in render (not in an effect) to avoid cascading renders. */
+  const catIdParam = searchParams.get("category");
+
+  /* ── Derived data ───────────────────────────────────────── */
   const categoryNames = useMemo(
-  () => new Map(categoryList.map((item) => [item.id, item.name])),
-  [categoryList]
-);
+    () => new Map(categoryList.map((item) => [item.id, item.name])),
+    [categoryList]
+  );
 
-  
-const getCategoryName = (product) =>
-  categoryNames.get(product.category_id) ||
-  product.category ||
-  `Category ${product.category_id}`;
+  /* Stable helper — defined outside useMemo so we can use it inline */
+  const getCategoryName = (product) =>
+    categoryNames.get(product.category_id) ||
+    product.category?.name ||
+    `Category ${product.category_id}`;
 
+  /* Resolve URL category param to a name once categories are loaded */
+  const resolvedCatFromUrl = useMemo(() => {
+    if (!catIdParam || categoryList.length === 0) return null;
+    const found = categoryList.find((c) => String(c.id) === String(catIdParam));
+    return found ? found.name : null;
+  }, [catIdParam, categoryList]);
 
-const categories = useMemo(
-  () => ["All", ...new Set(products.map(getCategoryName))],
-  [products, categoryNames]
-);
+  /* Effective category — URL param takes precedence until user selects a pill */
+  const effectiveCategory = !catFromUrl && resolvedCatFromUrl ? resolvedCatFromUrl : category;
 
-  const filteredProducts = products.filter((product) => {
-    const query = search.toLowerCase();
+  /* All distinct categories from loaded products */
+  const allCategories = useMemo(
+    () => ["All", ...new Set(products.map((p) => getCategoryName(p)))],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [products, categoryNames]
+  );
 
-    const matchesSearch = [
-      product.name,
-      product.brand,
-      product.description,
-    ].some((value) => (value || "").toLowerCase().includes(query));
+  /* Filter by search + category */
+  const filteredProducts = useMemo(() => {
+    const query = search.toLowerCase().trim();
+    let result = products.filter((product) => {
+      const matchesSearch = !query || [product.name, product.brand, product.description]
+        .some((v) => (v || "").toLowerCase().includes(query));
+      const productCategory =
+        categoryNames.get(product.category_id) || product.category?.name || `Category ${product.category_id}`;
+      const matchesCategory = effectiveCategory === "All" || productCategory === effectiveCategory;
+      return matchesSearch && matchesCategory;
+    });
 
-    const productCategory =
-      getCategoryName(product)
-
-    const matchesCategory =
-      category === "All" || productCategory === category;
-
-    return matchesSearch && matchesCategory;
-  });
-
-  
-function toggleCompare(id) {
-  setSelectedProducts((current) => {
-    if (current.includes(id)) {
-      return current.filter((item) => item !== id);
+    /* Client-side sort (supplements backend default ordering) */
+    if (sort) {
+      const [field, dir] = sort.split("|");
+      result = [...result].sort((a, b) => {
+        let aVal = a[field === "sustainability_score" ? "overall_sustainability_score" : field] ?? 0;
+        let bVal = b[field === "sustainability_score" ? "overall_sustainability_score" : field] ?? 0;
+        if (typeof aVal === "string") aVal = aVal.toLowerCase();
+        if (typeof bVal === "string") bVal = bVal.toLowerCase();
+        if (aVal < bVal) return dir === "asc" ? -1 : 1;
+        if (aVal > bVal) return dir === "asc" ? 1 : -1;
+        return 0;
+      });
     }
 
-    if (current.length >= 3) {
-      return current;
-    }
+    return result;
+  }, [products, search, effectiveCategory, sort, categoryNames]);
 
-    const updated = [...current, id];
-
-    if (updated.length === 3) {
-      setTimeout(() => {
-        navigate("/compare");
-      }, 0);
-    }
-
-    return updated;
-  });
-}
-
-
-  function formatPrice(product) {
-    const currency = product.currency || "USD";
-
-    try {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 2,
-      }).format(Number(product.price));
-    } catch {
-      return `${product.price} ${currency}`;
-    }
+  /* ── Compare toggle ─────────────────────────────────────── */
+  function toggleCompare(id) {
+    setSelectedProducts((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 3) return current;
+      const updated = [...current, id];
+      if (updated.length === 3) {
+        setTimeout(() => navigate("/compare"), 0);
+      }
+      return updated;
+    });
   }
 
+  /* ── Render ─────────────────────────────────────────────── */
   return (
     <main className="products-page">
-      <section className="products-intro">
-        <span className="eyebrow">THOUGHTFUL SHOPPING STARTS HERE</span>
-        <h1>
-          Discover <span>better choices.</span>
-        </h1>
-        <p>
-          Explore everyday essentials and compare their sustainability
-          information before you choose.
-        </p>
+      {/* Page intro header */}
+      <section className="page-intro" aria-labelledby="products-heading">
+        <div style={{ maxWidth: "var(--max-w-content)", margin: "0 auto" }}>
+          <span className="eyebrow">Thoughtful shopping starts here</span>
+          <h1 id="products-heading">
+            Discover <em>better choices.</em>
+          </h1>
+          <p>
+            Explore everyday essentials and compare their sustainability
+            information before you choose.
+          </p>
+        </div>
       </section>
 
-      <section className="products-section">
-        <div className="section-heading">
-          <div>
-            <h2>Explore products</h2>
-            <p>Find products that fit your needs.</p>
-          </div>
-          <span className="product-count">
-            {loading ? "Loading..." : `${filteredProducts.length} products`}
-          </span>
-        </div>
-
-        <div className="filters">
-          <label className="search-box">
-            <span>⌕</span>
+      {/* Main content */}
+      <div className="section-wrap">
+        {/* Search + sort toolbar */}
+        <div className="products-toolbar" role="search">
+          <label className="search-box" style={{ flex: "1 1 260px" }}>
+            <span className="search-icon" aria-hidden="true">⌕</span>
             <input
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
+              placeholder="Search products by name, brand or description…"
               aria-label="Search products"
             />
           </label>
 
-          <label className="category-filter">
-            <span className="sr-only">Filter by category</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {categories.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
+          <label className="sr-only" htmlFor="sort-select">Sort products</label>
+          <select
+            id="sort-select"
+            className="sort-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            aria-label="Sort products"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
 
-        {loading ? (
-          <div className="no-results">
-            <h3>Loading products...</h3>
-            <p>Fetching the latest products from GreenCart.</p>
+        {/* Category pills */}
+        {!loading && categoryList.length > 0 && (
+          <div className="category-pills" role="group" aria-label="Filter by category">
+            {allCategories.map((cat) => (
+              <button
+                key={cat}
+                className={`category-pill${effectiveCategory === cat ? " active" : ""}`}
+                onClick={() => { setCategory(cat); setCatFromUrl(true); }}
+                aria-pressed={effectiveCategory === cat}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
+        )}
+
+        {/* Header row with count + clear */}
+        <div className="products-header-row">
+          <h2>Explore products</h2>
+          <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "center", flexWrap: "wrap" }}>
+            {(search || effectiveCategory !== "All") && (
+              <button
+                className="secondary-button"
+                style={{ padding: "8px 14px", fontSize: 13 }}
+                onClick={() => { setSearch(""); setCategory("All"); setCatFromUrl(true); }}
+              >
+                ✕ Clear filters
+              </button>
+            )}
+            <span className="product-count-badge">
+              {loading ? "Loading…" : `${filteredProducts.length} product${filteredProducts.length !== 1 ? "s" : ""}`}
+            </span>
+          </div>
+        </div>
+
+        {/* Product grid / states */}
+        {loading ? (
+          <LoadingSkeleton count={6} />
         ) : error ? (
-          <div className="no-results">
-            <h3>Couldn't load products</h3>
+          <div className="no-results" role="alert">
+            <div className="no-results-icon">⚠️</div>
+            <h3>Couldn&rsquo;t load products</h3>
             <p>{error}</p>
-            <button onClick={() => window.location.reload()}>
+            <button className="primary-button" onClick={() => window.location.reload()}>
               Try again
             </button>
           </div>
         ) : filteredProducts.length > 0 ? (
           <div className="product-grid">
-            {filteredProducts.map((product) => {
-              const isSelected = selectedProducts.includes(product.id);
-              const score = product.overall_sustainability_score;
-              const hasScore =
-                score !== null &&
-                score !== undefined &&
-                score !== "" &&
-                Number.isFinite(Number(score));
-              const productCategory = getCategoryName(product);
-
-              return (
-                <article className="product-card" key={product.id}>
-                  <div className={`product-visual visual-${product.id}`}>
-                    <span className="eco-tag">♻ Sustainability</span>
-
-                    {product.image_url ? (
-                      <img
-                        className="product-emoji"
-                        src={product.image_url}
-                        alt={product.name}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    ) : (
-                      <span className="product-emoji" aria-hidden="true">
-                        ♻️
-                      </span>
-                    )}
-
-                    <button
-                      className={`compare-toggle ${
-                        isSelected ? "chosen" : ""
-                      }`}
-                      onClick={() => toggleCompare(product.id)}
-                      aria-label={`${
-                        isSelected ? "Remove" : "Add"
-                      } ${product.name} ${
-                        isSelected ? "from" : "to"
-                      } comparison`}
-                      aria-pressed={isSelected}
-                    >
-                      {isSelected ? "✓" : "+"}
-                    </button>
-                  </div>
-
-                  <div className="product-info">
-                    <span className="product-category">
-                      {productCategory}
-                    </span>
-
-                    <h3>{product.name}</h3>
-
-                    {product.brand && (
-                      <p className="product-brand">{product.brand}</p>
-                    )}
-
-                    <p>
-                      {product.description || "Product details unavailable."}
-                    </p>
-
-                    <div className="eco-score">
-                      <div>
-                        <span>Sustainability score</span>
-                        <strong>
-                          {hasScore ? `${Number(score).toFixed(1)}/100` : "Not rated"}
-                        </strong>
-                      </div>
-
-                      <div className="score-track">
-                        <div
-                          style={{
-                            width: `${
-                              hasScore
-                                ? Math.min(100, Math.max(0, score))
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="product-footer">
-                      <div>
-                        <strong>{formatPrice(product)}</strong>
-                      </div>
-
-                      <button
-                        className="compare-button"
-                        onClick={() => toggleCompare(product.id)}
-                      >
-                        {isSelected ? "Selected ✓" : "Compare +"}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                categoryName={getCategoryName(product)}
+                isSelected={selectedProducts.includes(product.id)}
+                onToggleCompare={toggleCompare}
+              />
+            ))}
           </div>
         ) : (
-          <div className="no-results">
-            <span>🔎</span>
+          <div className="no-results" role="status">
+            <div className="no-results-icon">🔎</div>
             <h3>
-              {products.length === 0
-                ? "No products available"
-                : "No matching products"}
+              {products.length === 0 ? "No products available" : "No matching products"}
             </h3>
             <p>
               {products.length === 0
                 ? "Add products to your database to display them here."
                 : "Try another search term or choose a different category."}
             </p>
-
             {products.length > 0 && (
               <button
-                onClick={() => {
-                  setSearch("");
-                  setCategory("All");
-                }}
+                className="primary-button"
+                onClick={() => { setSearch(""); setCategory("All"); }}
               >
                 Clear filters
               </button>
@@ -324,10 +269,9 @@ function toggleCompare(id) {
         )}
 
         <p className="demo-note">
-          Product information and sustainability scores are provided by the
-          GreenCart backend.
+          Product information and sustainability scores are provided by the GreenCart backend.
         </p>
-      </section>
+      </div>
     </main>
   );
 }

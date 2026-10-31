@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { useState } from "react";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -6,6 +6,51 @@ import Products from "./pages/Products";
 import Compare from "./pages/Compare";
 import About from "./pages/About";
 import "./App.css";
+
+function Footer() {
+  return (
+    <footer className="site-footer" aria-label="Site footer">
+      <div className="footer-inner">
+        {/* Brand column */}
+        <div className="footer-brand">
+          <Link className="logo" to="/" aria-label="GreenCart home">
+            <span className="logo-leaf" aria-hidden="true">🌿</span>
+            GreenCart
+          </Link>
+          <p>
+            Thoughtful shopping for a greener tomorrow. Discover, compare, and
+            choose products that are kinder to our planet.
+          </p>
+        </div>
+
+        {/* Shop column */}
+        <div className="footer-col">
+          <h4>Shop</h4>
+          <Link to="/products">All Products</Link>
+          <Link to="/compare">Compare</Link>
+        </div>
+
+        {/* Company column */}
+        <div className="footer-col">
+          <h4>Company</h4>
+          <Link to="/about">About GreenCart</Link>
+        </div>
+
+        {/* Sustainability column */}
+        <div className="footer-col">
+          <h4>Our approach</h4>
+          <Link to="/about">Eco scoring</Link>
+          <Link to="/about">How it works</Link>
+        </div>
+      </div>
+
+      <div className="footer-bottom">
+        <span>© 2026 GreenCart. All rights reserved.</span>
+        <span>Made with 🌿 for a greener planet.</span>
+      </div>
+    </footer>
+  );
+}
 
 function App() {
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -39,11 +84,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
-        <footer className="site-footer">
-          <a className="logo" href="/">🌿 GreenCart</a>
-          <p>Thoughtful shopping for a greener tomorrow.</p>
-          <span>© 2026 GreenCart</span>
-        </footer>
+        <Footer />
       </div>
     </BrowserRouter>
   );
