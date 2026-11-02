@@ -1,59 +1,37 @@
 # GreenCart Backend
 
-Phase 1 Backend foundation for the GreenCart platform.
+FastAPI backend for GreenCart featuring an in-memory SQLite database, 15 famous Indian brands demo catalog, shopping cart & orders API, and Open Food Facts live comparison integration.
 
-## Architecture & Tech Stack
+## Tech Stack
 
-- **Python 3.x**
-- **FastAPI**
-- **PostgreSQL** (via `psycopg2`)
-- **SQLAlchemy 2.x** (ORM)
-- **Alembic** (Migrations)
-- **Pytest** (Testing)
-- **Pydantic** (Validation & Settings)
+- **Python 3.10+**
+- **FastAPI** & **Uvicorn**
+- **SQLAlchemy 2.x** with `StaticPool`
+- **SQLite In-Memory** (`sqlite:///:memory:`)
+- **Pydantic v2**
+- **HTTPX** (Asynchronous client for Open Food Facts API)
 
-## Setup Instructions
+## Getting Started
 
-### 1. Prerequisites
-- Python 3.10+
-- PostgreSQL database server
-
-### 2. Virtual Environment & Dependencies
+### 1. Setup Virtual Environment
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### 3. Configuration
-Copy the `.env.example` file to `.env` and fill in your actual PostgreSQL credentials and JWT secret:
+### 2. Run Server
 ```powershell
-cp .env.example .env
-```
-Ensure you generate a secure random string for `SECRET_KEY`.
-
-### 4. Database Initialization & Migrations
-Create a PostgreSQL database named `greencart`.
-Apply the Alembic migrations:
-```powershell
-$env:PYTHONPATH="."
-alembic upgrade head
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### 5. Seeding Data
-```powershell
-python scripts/seed.py
-```
+- **API Base:** `http://127.0.0.1:8000/api`
+- **Interactive OpenAPI Documentation:** `http://127.0.0.1:8000/docs`
 
-### 6. Starting the Server
-```powershell
-uvicorn app.main:app --reload
-```
-API runs on `http://127.0.0.1:8000`. Refer to `API_DOCUMENTATION.md` for endpoint details.
+### 3. Automatic Seeding
+No manual database setup, migrations, or seed commands required. On startup, the application creates all tables and seeds:
+- 8 Product Categories
+- 63 Products across 15 Indian Brands (Tata, Amul, Fabindia, Khadi India, Godrej, Patanjali, Himalaya, Mamaearth, boAt, Paper Boat, Asian Paints, Dabur, Aashirvaad, Noise, Forest Essentials)
+- 2 Demo Users (`admin@greencart.demo`, `priya@greencart.demo`)
 
-### 7. Running Tests
-Tests use an in-memory SQLite database and do not touch production data.
-```powershell
-$env:PYTHONPATH="."
-python -m pytest
-```
+*Note: As an in-memory database, records reset when the server process terminates.*
