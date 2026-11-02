@@ -7,3 +7,4 @@ from app.models.wishlist import Wishlist
 from app.models.comparison import Comparison, ComparisonItem
 from app.models.refresh_token import RefreshToken
 from app.models.product_replacement import ProductReplacement
+from app.models.cart_order import CartItem, Order, OrderItem

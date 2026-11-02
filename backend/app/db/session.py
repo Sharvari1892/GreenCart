@@ -1,19 +1,26 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from app.core.config import settings
 
 uri = settings.SQLALCHEMY_DATABASE_URI
 
-engine_kwargs = {}
 if uri.startswith("sqlite"):
-    if settings.ENVIRONMENT != "test":
-        raise RuntimeError(
-            "SQLite is only allowed in isolated test environments. "
-            "Please configure PostgreSQL credentials in .env or set ENVIRONMENT=test for tests."
-        )
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
-else:
-    engine_kwargs["pool_pre_ping"] = True
+    # Use StaticPool so all connections share the same in-memory database.
+    # This is the correct approach for SQLite :memory: in a web app.
+    engine = create_engine(
+        uri,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
-engine = create_engine(uri, **engine_kwargs)
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+else:
+    engine = create_engine(uri, pool_pre_ping=True)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

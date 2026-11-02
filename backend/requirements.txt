@@ -1,13 +1,11 @@
 fastapi
 uvicorn
 sqlalchemy
-alembic
-psycopg2-binary
 pydantic-settings
-pydantic
-pytest
-httpx
+pydantic[email]
 python-dotenv
 passlib[argon2]
 python-jose[cryptography]
 email-validator
+pytest
+httpx

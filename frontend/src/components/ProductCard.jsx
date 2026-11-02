@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useCart } from "../context/CartContext";
+
 /** Background variant classes cycle through 5 colour palettes */
 const BG_VARIANTS = ["var-a", "var-b", "var-c", "var-d", "var-e"];
 
@@ -31,6 +34,9 @@ function formatPrice(product) {
  *   onToggleCompare  — (productId) => void
  */
 function ProductCard({ product, categoryName, isSelected, onToggleCompare }) {
+  const { addToCart } = useCart();
+  const [addedFeedback, setAddedFeedback] = useState(false);
+
   const score = product.overall_sustainability_score;
   const hasScore =
     score !== null &&
@@ -75,28 +81,22 @@ function ProductCard({ product, categoryName, isSelected, onToggleCompare }) {
     if (!product.purchase_url) return null;
     const status = product.source_verification_status;
     if (status === "verified_exact_source") {
-      return {
-        label: "Verified Store ↗",
-        title: "Direct purchase page from verified merchant/brand store",
-      };
+      return { label: "Verified Store ↗", title: "Direct purchase page from verified merchant/brand store" };
     }
     if (status === "manufacturer_info_only") {
-      return {
-        label: "Manufacturer Info ↗",
-        title: "Manufacturer official catalogue/specifications (not a direct store)",
-      };
+      return { label: "Manufacturer Info ↗", title: "Manufacturer official catalogue/specifications (not a direct store)" };
     }
     if (status === "retailer_source") {
-      return {
-        label: "Retailer Listing ↗",
-        title: "Third-party retailer / marketplace listing",
-      };
+      return { label: "Retailer Listing ↗", title: "Third-party retailer / marketplace listing" };
     }
-    return {
-      label: "Reference Source ↗",
-      title: "Regulatory reference or unverified source",
-    };
+    return { label: "Reference Source ↗", title: "Regulatory reference or unverified source" };
   })();
+
+  async function handleAddToCart() {
+    await addToCart(product.id, 1);
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 1500);
+  }
 
   return (
     <article className={`product-card ${isSustainable ? "card-sustainable" : "card-conventional"}`}>
@@ -191,7 +191,7 @@ function ProductCard({ product, categoryName, isSelected, onToggleCompare }) {
           </div>
         </div>
 
-        {/* Footer: price + source link + compare button */}
+        {/* Footer: price + source link + compare button + cart button */}
         <div className="product-footer">
           <div className="product-pricing">
             <span className="product-price">{formatPrice(product)}</span>
@@ -210,13 +210,22 @@ function ProductCard({ product, categoryName, isSelected, onToggleCompare }) {
             )}
           </div>
 
-          <button
-            className={`compare-button${isSelected ? " selected" : ""}`}
-            onClick={() => onToggleCompare(product.id)}
-            aria-pressed={isSelected}
-          >
-            {isSelected ? "✓ Selected" : "+ Compare"}
-          </button>
+          <div className="product-card-actions">
+            <button
+              className={`compare-button${isSelected ? " selected" : ""}`}
+              onClick={() => onToggleCompare(product.id)}
+              aria-pressed={isSelected}
+            >
+              {isSelected ? "✓ Selected" : "+ Compare"}
+            </button>
+            <button
+              className={`add-to-cart-btn${addedFeedback ? " added" : ""}`}
+              onClick={handleAddToCart}
+              aria-label={`Add ${product.name} to cart`}
+            >
+              {addedFeedback ? "✓ Added!" : "🛒 Add to Cart"}
+            </button>
+          </div>
         </div>
       </div>
     </article>

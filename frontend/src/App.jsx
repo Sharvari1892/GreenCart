@@ -1,11 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { useState } from "react";
+import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
 import Replacements from "./pages/Replacements";
 import Compare from "./pages/Compare";
 import About from "./pages/About";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import OrderConfirmation from "./pages/OrderConfirmation";
 import "./App.css";
 
 function Footer() {
@@ -22,12 +26,16 @@ function Footer() {
             Thoughtful shopping for a greener tomorrow. Discover, compare, and
             choose products that are kinder to our planet.
           </p>
+          <p className="footer-demo-note">
+            ⚠️ Demo site — 15 Indian brands, in-memory database. Data resets on server restart.
+          </p>
         </div>
 
         {/* Shop column */}
         <div className="footer-col">
           <h4>Shop</h4>
           <Link to="/products">All Products</Link>
+          <Link to="/cart">My Cart</Link>
           <Link to="/replacements">Find Alternatives</Link>
           <Link to="/compare">Compare</Link>
         </div>
@@ -59,44 +67,49 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="app">
-        <Navbar />
+      <CartProvider>
+        <div className="app">
+          <Navbar />
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route
-            path="/products"
-            element={
-              <Products
-                selectedProducts={selectedProducts}
-                setSelectedProducts={setSelectedProducts}
-              />
-            }
-          />
-          <Route
-            path="/replacements"
-            element={
-              <Replacements
-                selectedProducts={selectedProducts}
-                setSelectedProducts={setSelectedProducts}
-              />
-            }
-          />
-          <Route
-            path="/compare"
-            element={
-              <Compare
-                selectedProducts={selectedProducts}
-                setSelectedProducts={setSelectedProducts}
-              />
-            }
-          />
-          <Route path="/about" element={<About />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route
+              path="/products"
+              element={
+                <Products
+                  selectedProducts={selectedProducts}
+                  setSelectedProducts={setSelectedProducts}
+                />
+              }
+            />
+            <Route
+              path="/replacements"
+              element={
+                <Replacements
+                  selectedProducts={selectedProducts}
+                  setSelectedProducts={setSelectedProducts}
+                />
+              }
+            />
+            <Route
+              path="/compare"
+              element={
+                <Compare
+                  selectedProducts={selectedProducts}
+                  setSelectedProducts={setSelectedProducts}
+                />
+              }
+            />
+            <Route path="/about" element={<About />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
 
-        <Footer />
-      </div>
+          <Footer />
+        </div>
+      </CartProvider>
     </BrowserRouter>
   );
 }

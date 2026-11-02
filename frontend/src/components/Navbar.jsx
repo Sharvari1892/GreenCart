@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 import "./Navbar.css";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { cart } = useCart();
+  const itemCount = cart?.item_count || 0;
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -25,8 +28,16 @@ function Navbar() {
           <NavLink to="/about">About</NavLink>
         </nav>
 
-        {/* Desktop CTA */}
+        {/* Desktop right-side actions */}
         <div className="nav-right">
+          {/* Cart icon */}
+          <Link className="nav-cart-btn" to="/cart" aria-label={`Cart — ${itemCount} items`}>
+            🛒
+            {itemCount > 0 && (
+              <span className="cart-badge" aria-hidden="true">{itemCount}</span>
+            )}
+          </Link>
+
           <Link className="nav-cta" to="/products">
             Shop now ↗
           </Link>
@@ -58,6 +69,9 @@ function Navbar() {
         <NavLink to="/replacements" onClick={closeMenu}>Find Alternatives</NavLink>
         <NavLink to="/compare" onClick={closeMenu}>Compare</NavLink>
         <NavLink to="/about" onClick={closeMenu}>About</NavLink>
+        <NavLink to="/cart" onClick={closeMenu}>
+          🛒 Cart {itemCount > 0 && `(${itemCount})`}
+        </NavLink>
         <div className="nav-mobile-cta">
           <Link className="primary-button" to="/products" onClick={closeMenu}>
             Shop now ↗
