@@ -58,12 +58,13 @@ function Compare({ selectedProducts = [], setSelectedProducts }) {
     if (product.price === null || product.price === undefined)
       return "Price unavailable";
     try {
-      return new Intl.NumberFormat("en-US", {
+      return new Intl.NumberFormat("en-IN", {
         style: "currency",
-        currency: product.currency || "USD",
+        currency: product.currency || "INR",
+        maximumFractionDigits: 0,
       }).format(Number(product.price));
     } catch {
-      return `${product.price} ${product.currency || "USD"}`;
+      return `₹${product.price}`;
     }
   }
 
@@ -189,6 +190,18 @@ function Compare({ selectedProducts = [], setSelectedProducts }) {
                   ))}
                 </tr>
 
+                {/* Product Type */}
+                <tr>
+                  <th scope="row">Product Type</th>
+                  {compared.map((p) => (
+                    <td key={p.id}>
+                      <span className={`badge-pill ${p.is_sustainable ? "sustainable" : "conventional"}`}>
+                        {p.is_sustainable ? "🌱 Sustainable Alternative" : "Conventional Product"}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+
                 {/* Price */}
                 <tr>
                   <th scope="row">Price</th>
@@ -206,6 +219,16 @@ function Compare({ selectedProducts = [], setSelectedProducts }) {
                       </td>
                     );
                   })}
+                </tr>
+
+                {/* Materials / Composition */}
+                <tr>
+                  <th scope="row">Materials & Composition</th>
+                  {compared.map((p) => (
+                    <td key={p.id} style={{ fontSize: 13, lineHeight: 1.5 }}>
+                      {p.materials || "Standard conventional materials"}
+                    </td>
+                  ))}
                 </tr>
 
                 {/* Durability */}
@@ -260,17 +283,25 @@ function Compare({ selectedProducts = [], setSelectedProducts }) {
                   ))}
                 </tr>
 
-                {/* Evidence coverage */}
+                {/* Evidence coverage & Verification */}
                 <tr>
-                  <th scope="row">Evidence coverage</th>
-                  {compared.map((p, i) => (
-                    <td key={p.id} className={i === bestIndex("evidence_coverage") ? "best-score" : ""}>
-                      <span className={i === bestIndex("evidence_coverage") ? "score-value" : ""}>
-                        {formatScore(p.evidence_coverage)}
-                      </span>
-                      <ScoreBar value={p.evidence_coverage} />
-                    </td>
-                  ))}
+                  <th scope="row">Evidence & Verification</th>
+                  {compared.map((p, i) => {
+                    const cov = Number(p.evidence_coverage) || 0;
+                    const isMfg = p.source_verification_status === "manufacturer_info_only" || (cov === 0 && Boolean(p.materials));
+                    return (
+                      <td key={p.id} className={i === bestIndex("evidence_coverage") && cov > 0 ? "best-score" : ""}>
+                        <span className={i === bestIndex("evidence_coverage") && cov > 0 ? "score-value" : ""}>
+                          {cov > 0
+                            ? `${cov.toFixed(1)}/100 (Certified)`
+                            : isMfg
+                            ? "Manufacturer-Reported"
+                            : "Unverified / No Evidence"}
+                        </span>
+                        <ScoreBar value={p.evidence_coverage} />
+                      </td>
+                    );
+                  })}
                 </tr>
 
                 {/* Description */}
@@ -281,6 +312,73 @@ function Compare({ selectedProducts = [], setSelectedProducts }) {
                       {p.description || "No description available"}
                     </td>
                   ))}
+                </tr>
+
+                {/* Purchase / Info Source */}
+                <tr>
+                  <th scope="row">Source & Verification</th>
+                  {compared.map((p) => {
+                    const status = p.source_verification_status;
+                    let label = "Visit website ↗";
+                    let badgeLabel = "Source";
+                    let badgeClass = "source-badge-generic";
+                    if (status === "verified_exact_source") {
+                      label = "Verified Store ↗";
+                      badgeLabel = "Direct Store";
+                      badgeClass = "source-badge-verified";
+                    } else if (status === "manufacturer_info_only") {
+                      label = "Manufacturer Info ↗";
+                      badgeLabel = "Manufacturer Spec";
+                      badgeClass = "source-badge-mfg";
+                    } else if (status === "retailer_source") {
+                      label = "Retailer Listing ↗";
+                      badgeLabel = "Retailer";
+                      badgeClass = "source-badge-retailer";
+                    } else {
+                      label = "Reference Link ↗";
+                      badgeLabel = "Unverified Ref";
+                      badgeClass = "source-badge-unverified";
+                    }
+
+                    return (
+                      <td key={p.id}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <span
+                            className={`source-type-pill ${badgeClass}`}
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              alignSelf: "flex-start",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {badgeLabel}
+                          </span>
+                          {p.purchase_url ? (
+                            <a
+                              href={p.purchase_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: "var(--clr-primary)",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                textDecoration: "underline",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              {label}
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "var(--clr-text-muted)" }}>Source unavailable</span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
 
                 {/* Remove action */}

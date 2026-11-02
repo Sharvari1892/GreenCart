@@ -8,3 +8,6 @@ pydantic
 pytest
 httpx
 python-dotenv
+passlib[argon2]
+python-jose[cryptography]
+email-validator

@@ -20,6 +20,7 @@ function Navbar() {
         <nav className="nav-links" aria-label="Main navigation">
           <NavLink to="/" end>Home</NavLink>
           <NavLink to="/products">Products</NavLink>
+          <NavLink to="/replacements">Find Alternatives</NavLink>
           <NavLink to="/compare">Compare</NavLink>
           <NavLink to="/about">About</NavLink>
         </nav>
@@ -54,6 +55,7 @@ function Navbar() {
       >
         <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
         <NavLink to="/products" onClick={closeMenu}>Products</NavLink>
+        <NavLink to="/replacements" onClick={closeMenu}>Find Alternatives</NavLink>
         <NavLink to="/compare" onClick={closeMenu}>Compare</NavLink>
         <NavLink to="/about" onClick={closeMenu}>About</NavLink>
         <div className="nav-mobile-cta">

@@ -103,7 +103,7 @@ function Products({ selectedProducts, setSelectedProducts }) {
   const filteredProducts = useMemo(() => {
     const query = search.toLowerCase().trim();
     let result = products.filter((product) => {
-      const matchesSearch = !query || [product.name, product.brand, product.description]
+      const matchesSearch = !query || [product.name, product.brand, product.description, product.materials]
         .some((v) => (v || "").toLowerCase().includes(query));
       const productCategory =
         categoryNames.get(product.category_id) || product.category?.name || `Category ${product.category_id}`;

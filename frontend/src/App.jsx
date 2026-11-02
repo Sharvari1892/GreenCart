@@ -3,6 +3,7 @@ import { useState } from "react";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
+import Replacements from "./pages/Replacements";
 import Compare from "./pages/Compare";
 import About from "./pages/About";
 import "./App.css";
@@ -27,6 +28,7 @@ function Footer() {
         <div className="footer-col">
           <h4>Shop</h4>
           <Link to="/products">All Products</Link>
+          <Link to="/replacements">Find Alternatives</Link>
           <Link to="/compare">Compare</Link>
         </div>
 
@@ -66,6 +68,15 @@ function App() {
             path="/products"
             element={
               <Products
+                selectedProducts={selectedProducts}
+                setSelectedProducts={setSelectedProducts}
+              />
+            }
+          />
+          <Route
+            path="/replacements"
+            element={
+              <Replacements
                 selectedProducts={selectedProducts}
                 setSelectedProducts={setSelectedProducts}
               />

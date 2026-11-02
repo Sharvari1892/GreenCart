@@ -2,7 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
-from app.schemas.product import ProductDetail, PaginatedProducts
+from app.schemas.product import ProductDetail, PaginatedProducts, ReplacementWithProduct
 from app.schemas.sustainability_evidence import SustainabilityEvidence
 from app.repositories import product_repo, evidence_repo
 
@@ -51,3 +51,10 @@ def read_product_evidence(product_id: int, db: Session = Depends(get_db)):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return evidence_repo.get_evidence_for_product(db, product_id)
+
+@router.get("/{product_id}/replacements", response_model=List[ReplacementWithProduct])
+def read_product_replacements(product_id: int, db: Session = Depends(get_db)):
+    replacements = product_repo.get_product_replacements(db, product_id)
+    if replacements is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return replacements

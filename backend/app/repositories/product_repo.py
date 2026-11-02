@@ -28,8 +28,12 @@ def populate_product_scores(product: Product) -> ProductSchema:
         "brand": product.brand,
         "description": product.description,
         "price": product.price,
-        "currency": product.currency,
+        "currency": product.currency or "INR",
         "image_url": product.image_url,
+        "materials": product.materials,
+        "purchase_url": product.purchase_url,
+        "source_verification_status": product.source_verification_status or "unverified",
+        "is_sustainable": product.is_sustainable if product.is_sustainable is not None else False,
         "durability_score": product.durability_score,
         "packaging_score": product.packaging_score,
         "repairability_score": product.repairability_score,
@@ -59,7 +63,14 @@ def get_products(
     
     if search:
         search_filter = f"%{search}%"
-        query = query.filter(or_(Product.name.ilike(search_filter), Product.brand.ilike(search_filter)))
+        query = query.outerjoin(Category, Product.category_id == Category.id).filter(
+            or_(
+                Product.name.ilike(search_filter),
+                Product.brand.ilike(search_filter),
+                Product.materials.ilike(search_filter),
+                Category.name.ilike(search_filter),
+            )
+        )
     
     if category_id:
         query = query.filter(Product.category_id == category_id)
@@ -85,22 +96,8 @@ def get_products(
             else:
                 query = query.order_by(asc(sort_col))
     
-    # Because overall_sustainability_score is computed in python, sorting by it in DB requires repeating the math logic in SQL or we fetch and sort.
-    # The prompt says: "Sort by name, price, durability score, or sustainability score."
-    # Let's add sustainability score sort in DB.
-    # 0.35 * durability + 0.25 * packaging + 0.25 * repairability + 0.15 * evidence quality
-    # Computing evidence quality in SQL is very complex (requires subqueries grouping by product_id).
-    # Since this is a phase 2 feature and we shouldn't do crazy SQL, if sort_by == 'sustainability_score', we might have to fetch all or approximate. 
-    # Let's try to approximate or use a subquery if needed. Actually, let's just fetch and sort if requested, OR sort in DB if we can.
-    # Wait, the prompt says: "Use database queries rather than loading the entire catalogue into Python."
-    # So I must sort in DB. But `evidence quality` is dynamic.
-    # Let's write the SQL expression for the score if possible, or just ignore the evidence part for the sorting if it's too hard? No, that's wrong.
-    # Let's create a subquery for evidence coverage.
-    
     # Subquery for evidence coverage
     from sqlalchemy import select, func, distinct, cast, Float
-    
-    # We will get all products, then apply python-side transformations for the response.
     
     total = query.count()
     total_pages = (total + page_size - 1) // page_size
@@ -125,7 +122,6 @@ def get_products(
         query = query.outerjoin(ev_sq, Product.id == ev_sq.c.product_id)
         
         # Calculate score: 0.35 * dur + 0.25 * pack + 0.25 * rep + 0.15 * ev_cov
-        # If any is NULL, score is NULL
         from sqlalchemy import case
         score_expr = case(
             (
@@ -169,5 +165,37 @@ def get_product_by_id(db: Session, product_id: int) -> Optional[ProductDetail]:
     detail_dict = base_prod.model_dump()
     detail_dict["category"] = product.category
     detail_dict["evidence"] = product.evidence
+    detail_dict["replacements"] = product.replacements_for
     
     return ProductDetail(**detail_dict)
+
+def get_product_replacements(db: Session, product_id: int) -> Optional[List[dict]]:
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        return None
+
+    from app.models.product_replacement import ProductReplacement
+    replacements = (
+        db.query(ProductReplacement)
+        .filter(ProductReplacement.original_product_id == product_id)
+        .all()
+    )
+    result = []
+    for rep in replacements:
+        sust_prod = populate_product_scores(rep.replacement_product)
+        result.append({
+            "id": rep.id,
+            "original_product_id": rep.original_product_id,
+            "replacement_product_id": rep.replacement_product_id,
+            "replacement_type": rep.replacement_type,
+            "reason": rep.reason,
+            "main_change": rep.main_change,
+            "known_limitations": rep.known_limitations,
+            "created_at": rep.created_at,
+            "replacement_product": sust_prod,
+            "price": sust_prod.price,
+            "overall_sustainability_score": sust_prod.overall_sustainability_score,
+            "evidence_coverage": sust_prod.evidence_coverage,
+            "source_verification_status": sust_prod.source_verification_status,
+        })
+    return result

@@ -19,18 +19,18 @@ function getCategoryEmoji(name = "") {
     return "🧊";
   if (n.includes("personal") || n.includes("care") || n.includes("hygiene") || n.includes("beauty"))
     return "🧴";
-  if (n.includes("clean") || n.includes("household") || n.includes("detergent"))
+  if (n.includes("kitchen") || n.includes("home") || n.includes("house"))
+    return "🍽️";
+  if (n.includes("cloth") || n.includes("apparel") || n.includes("fashion"))
+    return "👕";
+  if (n.includes("electronics") || n.includes("tech") || n.includes("gadget"))
+    return "💡";
+  if (n.includes("essential") || n.includes("everyday"))
+    return "🛍️";
+  if (n.includes("clean") || n.includes("detergent"))
     return "🧼";
   if (n.includes("organic"))
     return "🌿";
-  if (n.includes("pantry") || n.includes("condiment") || n.includes("sauce") || n.includes("spice"))
-    return "🫙";
-  if (n.includes("baby") || n.includes("infant"))
-    return "🍼";
-  if (n.includes("pet"))
-    return "🐾";
-  if (n.includes("electronics") || n.includes("tech"))
-    return "💡";
   return "🛒";
 }
 
